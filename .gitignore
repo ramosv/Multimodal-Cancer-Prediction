@@ -1,3 +1,11 @@
+# Ignore large dataset
+
+Dataset\*.csv
+Dataset\*.zip
+Dataset\*.DICOM
+Dataset\*.tcia
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
