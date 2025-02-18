@@ -1,4 +1,3 @@
-pydicom
-matplotlib
+pandas
+cptac
 numpy
-scikit-image
