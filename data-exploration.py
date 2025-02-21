@@ -78,3 +78,7 @@ clinical.to_csv(output_dir / "clinical_filtered.csv")
 # we need to write a function to to encode the clincal data.
 # for this we may want to look up which columns are the most relevant for ccrcc since there are too may features and mary are irrelevant.
 # I feel like 6-10 features should be good. More is fine but need to be relevant to the cancer.
+
+# age, sex, tumor_laterality, tumor_size_cm, tumor_necrosis, tumor_stage_pathological, bmi,
+# alcohol_consumption, tobacco_smoking_history, medica_condition, follow_up_period, vital_status_at_date_of_last_contact,
+# tumor_status_at_date_of_last_contact_or_death, Survival status (1, dead; 0, alive)
