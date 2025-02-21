@@ -5,6 +5,9 @@ Dataset\*.zip
 Dataset\*.DICOM
 Dataset\*.tcia
 
+jessica_output
+Dataset
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
