@@ -7,9 +7,9 @@ from sklearn.preprocessing import LabelEncoder
 
 def load_data():
     root = Path("jessica_output")
-    genomics = pd.read_csv(root / "genes_filtered.csv")
-    proteomics = pd.read_csv(root / "proteins_filtered.csv")
-    clinical = pd.read_csv(root / "clinical_filtered.csv")
+    genomics = pd.read_csv(root / "genes_filtered.csv", index_col=0)
+    proteomics = pd.read_csv(root / "proteins_filtered.csv", index_col=0)
+    clinical = pd.read_csv(root / "clinical_filtered.csv",index_col=0)
     return genomics, proteomics, clinical
 
 def encode_clinical_data(clinical):
@@ -24,6 +24,7 @@ def encode_clinical_data(clinical):
 
     clinical = clinical[relevant_columns]
 
+
     # Construct target variable
     stages_dict = {
         "Stage I": 0,
@@ -33,24 +34,36 @@ def encode_clinical_data(clinical):
     }
     clinical["tumor_stage_pathological"] = clinical["tumor_stage_pathological"].map(stages_dict)
     phenotype = clinical["tumor_stage_pathological"]
+
+
     clinical.drop(columns="tumor_stage_pathological")
 
+    age_map = {
+        ">=90": 90
+    }
+    clinical["age"] = clinical["age"].map(age_map)
+
     print(type(phenotype))
+
+
+    phenotype.squeeze()
     print(phenotype)
     
 
 
     string_features = ["sex", "tumor_laterality", "tumor_necrosis","alcohol_consumption", "tobacco_smoking_history", "medical_condition"]
     encoder = LabelEncoder()
+    clean_clinical = clinical.copy()
 
     for column in string_features:
-        
-        clinical[column]  = encoder.fit_transform(clinical[column])
+        clean_clinical[column]  = encoder.fit_transform(clinical[column])
 
     
     #clinical = encoder.fit_transform(string_features)
 
-    print(clinical)
+    print(phenotype.value_counts(sort=True))
+
+    print(clean_clinical)
     
 
 
@@ -64,7 +77,7 @@ def encode_clinical_data(clinical):
     #clinical = pd.get_dummies(clinical)
 
     # at the end we return the a tuple with the clean clinica df and the phenotype or target variable
-    return clinical, phenotype
+    return clean_clinical, phenotype
 
 
 def pre_process_omics(genomics, proteomics):
@@ -81,8 +94,7 @@ def pre_process_omics(genomics, proteomics):
 
     genomics = genomics.loc[:,(genomics==0).mean() < .5]
     proteomics = proteomics.loc[:, (proteomics==0).mean() < .5]
-    genomics = genomics.reset_index(drop=True)
-    proteomics = proteomics.reset_index(drop = True)
+
     print(genomics.shape)
     print(proteomics.shape)
 
