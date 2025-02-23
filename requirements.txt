@@ -1,3 +1,5 @@
 pandas
 cptac
 numpy
+scikit-learn
+matplotlib
