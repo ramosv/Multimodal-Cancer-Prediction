@@ -4,6 +4,8 @@ Dataset\*.csv
 Dataset\*.zip
 Dataset\*.DICOM
 Dataset\*.tcia
+CPTAC-CCRCC
+CT-Scan\CPTAC-CCRCC
 
 jessica_output
 Dataset
