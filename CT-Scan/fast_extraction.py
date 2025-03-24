@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-import fast  
+import fastai  
 import pandas as pd
 
 def main():
@@ -25,7 +25,7 @@ def main():
             safe_series_name = series_name.replace(" ", "_")
 
             try:
-                ct_image = fast.readImage(str(series_folder))
+                ct_image = fastai.readImage(str(series_folder))
             except Exception as e:
                 print(f"Skipping {series_folder} - could not load: {e}")
                 continue

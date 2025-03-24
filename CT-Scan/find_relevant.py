@@ -4,7 +4,11 @@ import shutil
 
 def main():
     root = Path.cwd()
-    clinical = pd.read_csv(root / "clinical_filtered.csv", index_col=0)
+    try:
+        clinical = pd.read_csv(root / "clinical_filtered.csv", index_col=0, encoding="utf-8")
+    except UnicodeDecodeError:
+            print("Retrying with ISO-8859-1 encoding for proteomics data...")
+            clinical = pd.read_csv(root / "clinical_filtered.csv", index_col=0, encoding="ISO-8859-1")
     patient_ids = set(clinical.index)
     cptac_dir = root / "cptac-ccrcc"
 

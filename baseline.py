@@ -4,13 +4,43 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 from pathlib import Path
 from sklearn.preprocessing import LabelEncoder
+import numpy as np
+
+import pandas as pd
+from pathlib import Path
 
 def load_data():
-    root = Path("jessica_output")
-    genomics = pd.read_csv(root / "genes_filtered.csv", index_col=0)
-    proteomics = pd.read_csv(root / "proteins_filtered.csv", index_col=0)
-    clinical = pd.read_csv(root / "clinical_filtered.csv",index_col=0)
-    return genomics, proteomics, clinical
+    try:
+        root = Path("jessica_output")
+
+        genomics = pd.read_csv(root / "genes_filtered.csv", index_col=0, encoding="utf-8")
+        
+        # Handle encoding issues for proteins_filtered.csv
+        try:
+            proteomics = pd.read_csv(root / "proteins_filtered.csv", index_col=0, encoding="utf-8")
+        except UnicodeDecodeError:
+            print("Retrying with ISO-8859-1 encoding for proteomics data...")
+            proteomics = pd.read_csv(root / "proteins_filtered.csv", index_col=0, encoding="ISO-8859-1")
+
+        try:
+            clinical = pd.read_csv(root / "clinical_filtered.csv", index_col=0, encoding="utf-8")
+        except UnicodeDecodeError:
+            print("Retrying with ISO-8859-1 encoding for proteomics data...")
+            clinical = pd.read_csv(root / "clinical_filtered.csv", index_col=0, encoding="ISO-8859-1")
+
+        # Fill NaN values if necessary
+        genomics.replace("", np.nan, inplace=True)
+        proteomics.replace("", np.nan, inplace=True)
+        clinical.replace("", np.nan, inplace=True)
+
+        return genomics, proteomics, clinical
+
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+    
 
 def encode_clinical_data(clinical):
     '''
