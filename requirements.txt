@@ -3,3 +3,5 @@ cptac
 numpy
 scikit-learn
 matplotlib
+fast
+pyradiomics
