@@ -3,5 +3,8 @@ cptac
 numpy
 scikit-learn
 matplotlib
-fast
-pyradiomics
+#fast
+#pyradiomics
+#pytorch
+#torchvision
+# install from https://pytorch.org/get-started/locally/

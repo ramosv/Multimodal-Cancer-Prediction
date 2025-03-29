@@ -10,6 +10,9 @@ CT-Scan\CPTAC-CCRCC
 jessica_output
 Dataset
 
+*.dcm
+*.png
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
