@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-import fast  
+#import fast  
 import pandas as pd
 
 def main():

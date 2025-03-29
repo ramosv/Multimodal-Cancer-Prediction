@@ -51,6 +51,7 @@ Extracting relevant features from CT scan
         - To download the images you will need to install the data retrieving tool: https://wiki.cancerimagingarchive.net/display/NBIA/Downloading+TCIA+Images
     
 - Image Data Workflow Overview:
+
 Extracted relevant image features from CT scans for kidney cancer diagnosis using the two tools from above. The goal is to leverage these image features combined with clinical metadata to build predictive models.
 
 - Files Created:

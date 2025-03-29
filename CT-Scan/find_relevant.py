@@ -4,9 +4,13 @@ import shutil
 
 def main():
     root = Path.cwd()
-    clinical = pd.read_csv(root / "clinical_filtered.csv", index_col=0)
+    print(f"Current working dir: {root}")
+    clinical = pd.read_csv(r"C:\Users\ramos\Desktop\GitHub\Clear-Cell-Carcinoma-Study\jessica_output\clinical_filtered.csv", index_col=0)
     patient_ids = set(clinical.index)
-    cptac_dir = root / "cptac-ccrcc"
+
+    print(f"Unique Patients clinical: {len(patient_ids)}")
+    #breakpoint()
+    cptac_dir = root / "CT-Scan\CPTAC-CCRCC"
 
     present_dir = root / "present"
     not_present_dir = root / "not_present"
@@ -24,6 +28,8 @@ def main():
     num_not_present = len(list(not_present_dir.iterdir()))
     print(f"Moved {num_present} folders to {present_dir}")
     print(f"Moved {num_not_present} folders to {not_present_dir}")
+
+
 
 if __name__ == "__main__":
     main()
