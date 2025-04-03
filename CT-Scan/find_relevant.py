@@ -23,6 +23,12 @@ def main():
                 shutil.move(str(folder), str(present_dir / folder.name))
             else:
                 shutil.move(str(folder), str(not_present_dir / folder.name))
+    
+    for folder in cptac_dir.iterdir():
+        if folder.is_dir():
+            for sub_folder in folder.iterdir():
+                if "MR" in sub_folder.name and sub_folder.is_dir():
+                    shutil.rmtree(sub_folder)
 
     num_present = len(list(present_dir.iterdir()))
     num_not_present = len(list(not_present_dir.iterdir()))
