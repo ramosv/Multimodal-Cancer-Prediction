@@ -3,6 +3,7 @@ cptac
 numpy
 scikit-learn
 matplotlib
+dicom2jpg
 #fast
 #pyradiomics
 #pytorch

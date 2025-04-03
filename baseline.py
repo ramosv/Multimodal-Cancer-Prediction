@@ -29,8 +29,8 @@ def encode_clinical_data(clinical):
     stages_dict = {
         "Stage I": 0,
         "Stage II": 1,
-        "Stage III": 2,
-        "Stage IV": 3
+        "Stage III": 1,
+        "Stage IV": 1
     }
     clinical["tumor_stage_pathological"] = clinical["tumor_stage_pathological"].map(stages_dict)
     phenotype = clinical["tumor_stage_pathological"]
@@ -38,10 +38,11 @@ def encode_clinical_data(clinical):
 
     clinical.drop(columns="tumor_stage_pathological")
 
-    age_map = {
-        ">=90": 90
-    }
-    clinical["age"] = clinical["age"].map(age_map)
+    clinical["age"].loc[clinical["age"] == ">=90"] = 90
+
+    #print(clinical["age"].value_counts())
+
+    #breakpoint()
 
     print(type(phenotype))
 
@@ -91,15 +92,45 @@ def pre_process_omics(genomics, proteomics):
     genomics = genomics.fillna(0)
     proteomics = proteomics.fillna(0)
     # df = df.loc[:, (df==0).mean() < .7]
-
-    genomics = genomics.loc[:,(genomics==0).mean() < .5]
-    proteomics = proteomics.loc[:, (proteomics==0).mean() < .5]
-
+    print("Before filtering:")
     print(genomics.shape)
     print(proteomics.shape)
+    print(genomics.describe())
+    print(proteomics.describe())
 
-    print(genomics)
-    print(proteomics)
+    # remove columns with more than 50% missing values
+    genomics = genomics.loc[:, (genomics == 0).mean() <= 0.5]
+    proteomics = proteomics.loc[:, (proteomics == 0).mean() <= 0.5]
+
+    # Drop features with very low variance
+    from sklearn.feature_selection import VarianceThreshold
+
+    variance_filter = VarianceThreshold(threshold=0.05)
+    genomics = variance_filter.fit_transform(genomics)
+    proteomics = variance_filter.fit_transform(proteomics)
+
+    # from sklearn.decomposition import PCA
+
+    # pca = PCA(n_components=500)  # pick a suitable number of components
+    # genomics = pca.fit_transform(genomics)
+    # proteomics = pca.fit_transform(proteomics)
+
+    # remove columns with more than 70% missing values
+    #genomics = genomics.loc[:, (genomics == 0).mean() < (0.5 * (genomics != 0).mean())]
+    
+    #proteomics = proteomics.loc[:, (proteomics == 0).mean() < (0.5 * (proteomics != 0).mean())]
+
+    print("\nAfter filtering:")
+    print(genomics.shape)
+    print(proteomics.shape)
+    # from numpy array to pandas dataframe
+    genomics = pd.DataFrame(genomics)
+    proteomics = pd.DataFrame(proteomics)
+
+    #print(genomics.describe())
+    #print(proteomics.describe())
+
+
     return genomics, proteomics
 
 def random_forest_classifier(genomics, proteomics, clinical, phenotype):
@@ -107,7 +138,7 @@ def random_forest_classifier(genomics, proteomics, clinical, phenotype):
     Here we will train the model and return the predictions and metrics 
     '''
     # merge the omics
-    omics = pd.concat([genomics, proteomics, clinical], axis=1)
+    omics = pd.merge([genomics, proteomics, clinical])
 
     # split the data
     X_train, X_test, y_train, y_test = train_test_split(omics, phenotype, test_size=0.3, random_state=127)
