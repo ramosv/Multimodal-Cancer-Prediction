@@ -104,10 +104,16 @@ def pre_process_omics(genomics, proteomics):
 
     # Drop features with very low variance
     from sklearn.feature_selection import VarianceThreshold
+    genomics_index = genomics.index
+    genomics_columns = genomics.columns
+    proteomics_index = proteomics.index
+    proteomics_columns = proteomics.columns
 
     variance_filter = VarianceThreshold(threshold=0.05)
     genomics = variance_filter.fit_transform(genomics)
+    genomics = pd.DataFrame(genomics, index=genomics_index, columns=genomics_columns[variance_filter.get_support()])
     proteomics = variance_filter.fit_transform(proteomics)
+    proteomics = pd.DataFrame(proteomics, index=proteomics_index, columns=proteomics_columns[variance_filter.get_support()])
 
     # from sklearn.decomposition import PCA
 
@@ -124,9 +130,8 @@ def pre_process_omics(genomics, proteomics):
     print(genomics.shape)
     print(proteomics.shape)
     # from numpy array to pandas dataframe
-    genomics = pd.DataFrame(genomics)
-    proteomics = pd.DataFrame(proteomics)
-
+    print(genomics)
+    print(proteomics)
     #print(genomics.describe())
     #print(proteomics.describe())
 
@@ -137,8 +142,12 @@ def random_forest_classifier(genomics, proteomics, clinical, phenotype):
     '''
     Here we will train the model and return the predictions and metrics 
     '''
+    print()
     # merge the omics
-    omics = pd.merge([genomics, proteomics, clinical])
+    print(genomics.shape)
+    print(proteomics.shape)
+    print(clinical.shape)
+    omics = pd.concat([genomics, proteomics, clinical], axis=1, join="inner")
 
     # split the data
     X_train, X_test, y_train, y_test = train_test_split(omics, phenotype, test_size=0.3, random_state=127)
