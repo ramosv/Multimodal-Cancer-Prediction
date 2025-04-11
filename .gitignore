@@ -12,6 +12,8 @@ Dataset
 
 *.dcm
 *.png
+./*.pt
+.jessica-ml-project
 
 
 # Byte-compiled / optimized / DLL files

@@ -1,11 +1,19 @@
 import torch
 from torchvision import models, transforms
 from torchvision.models.feature_extraction import create_feature_extractor
-from torchvision.models import resnet18, ResNet18_Weights
+from torchvision.models import resnet18, ResNet18_Weights, resnet50, ResNet50_Weights
 from PIL import Image
 from pathlib import Path
+import tqdm
 
-resnet = models.resnet18(weights=ResNet18_Weights.DEFAULT)
+if torch.backends.mps.is_available():
+    mps_device = torch.device("mps")
+    x = torch.ones(1, device=mps_device)
+    print (x)
+else:
+    print ("MPS device not found.")
+
+resnet = models.resnet50(weights=ResNet50_Weights.DEFAULT).to(mps_device)
 resnet.eval()
 
 return_nodes = {'avgpool': 'features'}
@@ -26,7 +34,7 @@ img_dir = root / "CT-Scan/20250329"
 
 patient_features = {}  # Dictionary: {patient_id: list_of_feature_tensors}
 
-for folder in img_dir.iterdir():
+for folder in tqdm.tqdm(list(img_dir.iterdir()), desc="Processing folders"):
     # Example folder name: "1234_Something" so patient_id = "1234"
     parts = folder.name.split("_")
     patient_id = parts[0]
@@ -39,9 +47,8 @@ for folder in img_dir.iterdir():
         if sub_folder.is_dir():
             for img in sub_folder.iterdir():
                 image = Image.open(img).convert("RGB")
-                img_tensor = transform(image).unsqueeze(0)
-
                 with torch.no_grad():
+                    img_tensor = transform(image).unsqueeze(0).to(mps_device)
                     output = feature_extractor(img_tensor)
                 features = output['features'].view(1, -1)  # shape [1, 512] for ResNet18
 
@@ -53,9 +60,12 @@ for folder in img_dir.iterdir():
 # At this point, patient_features[patient_id] is a list of [1, feature_dim] tensors
 # Optionally stack/aggregate per patient. For example:
 for pid, feats in patient_features.items():
-    patient_features[pid] = torch.cat(feats, dim=0)  # shape [num_images_for_that_pid, 512]
-
-# Finally, save the dictionary
+    if feats:
+        patient_features[pid] = torch.cat(feats, dim=0).cpu()
+    else:
+        # Handle the case where no features were extracted, e.g., log an error or assign a default value
+        print(f"No features extracted for patient {pid}.")
+        patient_features[pid] = torch.tensor([])
 torch.save(patient_features, "features.pt")
 
 print("Saved dictionary of patient -> feature_tensor.")
