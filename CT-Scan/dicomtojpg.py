@@ -6,10 +6,24 @@ if __name__ == "__main__":
 
     #dicom_img_01 = Path(r"C:\Users\ramos\Desktop\GitHub\Clear-Cell-Carcinoma-Study\CT-Scan\CPTAC-CCRCC\C3L-00608\03-10-2012-NA-CT ABDOMEN WITH AND WITHOUT CONTRAST-69573\1.000000-SCOUT-99132\1-1.dcm")
     #dicom2jpg.dicom2jpg(dicom_img_01)
-    root = Path.cwd()
-    dicom_dir = root / "CT-Scan/present"
-    # dicom_dir = Path(r"C:\Users\ramos\Desktop\GitHub\Clear-Cell-Carcinoma-Study\CT-Scan\present")
-    dicom2jpg.dicom2png(dicom_dir)
+    #root = Path.cwd()
+    # dicom_dir = root / "CT-Scan/present2"
+    # dicom_dir2 = root / "CT-Scan/not_present2"
+    # # dicom_dir = Path(r"C:\Users\ramos\Desktop\GitHub\Clear-Cell-Carcinoma-Study\CT-Scan\present")
+    # dicom2jpg.dicom2png(dicom_dir)
+    # dicom2jpg.dicom2png(dicom_dir2)
+
+    from PIL import Image
+    import numpy as np
+    from pathlib import Path
+
+    out_dir = Path("/home/vicente/Github/Clear-Cell-Carcinoma-Study/CT-Scan/20250423/")
+    for folder in out_dir.iterdir():
+        for file in folder.glob("*.png"):
+            img = Image.open(file)
+            arr = np.array(img)
+            if arr.max() == arr.min():
+                print(f"⚠️ Possibly blank image: {file.name}")
     
 #export_location = "/Users/user/Desktop/BMP_files"
 
