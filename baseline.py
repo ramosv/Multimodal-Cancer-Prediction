@@ -6,7 +6,7 @@ from pathlib import Path
 from sklearn.preprocessing import LabelEncoder
 
 def load_data():
-    root = Path("jessica_output")
+    root = Path("/Users/jessicatan/CU Denver 2024/Spring 2025/CSCI 5930/Research Project/Clear-Cell-Carcinoma-Study/jessica_output")
     genomics = pd.read_csv(root / "genes_filtered.csv", index_col=0)
     proteomics = pd.read_csv(root / "proteins_filtered.csv", index_col=0)
     clinical = pd.read_csv(root / "clinical_filtered.csv",index_col=0)

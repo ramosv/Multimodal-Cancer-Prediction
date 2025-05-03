@@ -29,12 +29,13 @@ else:
     logging.info("Falling back to CPU.")
 
 class ClassifierNN(nn.Module):
+    #input dim should be 128
     def __init__(self, input_dim, num_classes):
         super(ClassifierNN, self).__init__()
         self.fc = nn.Sequential(
-            nn.Linear(input_dim, 256),
+            nn.Linear(input_dim, 64),
             nn.ReLU(),
-            nn.Linear(256, num_classes)
+            nn.Linear(64, 2)
         )
     
     def forward(self, x):
@@ -104,7 +105,7 @@ def predict_prefusion(phenotype):
     
     # Train-test split (using RandomForestClassifier here instead of the NN)
     X_train, X_test, y_train, y_test = train_test_split(
-        scaled_features_df, phenotype_filtered, test_size=0.3, random_state=223, shuffle=True
+        scaled_features_df, phenotype_filtered, test_size=0.4, random_state=223, shuffle=True
     )
     
     from sklearn.ensemble import RandomForestClassifier
@@ -118,10 +119,11 @@ def predict_prefusion(phenotype):
     return predictions, model
 
 def get_target_class(clinical):
-    present_patients = Path("CT-Scan/present")
+    present_patients = Path("CT-Scan/present_png")
     relevant_patients =[]
     for folder in present_patients.iterdir():
-        relevant_patients.append(folder.name)
+        parts = folder.name.split("_")
+        relevant_patients.append(parts[0])
     print(relevant_patients)
     clinical.reset_index(inplace=True)
     print(clinical.columns)
@@ -144,7 +146,7 @@ def get_target_class(clinical):
 
     print(type(phenotype))
     print(phenotype)
-    # print(phenotype.value_counts(sort=True))
+    print(phenotype.value_counts(sort=True))
     return phenotype
 
 
@@ -153,36 +155,52 @@ def get_target_class(clinical):
 def predict_cnn_only(phenotype):
     root = Path("all_output")
     num_classes = 2
-    features_dict = torch.load(root /"features.pt") 
-    patient_ids = list(features_dict.keys())
+    features_dict = torch.load(root /"custom_feats.pt") 
+    labels_dict = torch.load(root /"labels.pt")
+    patient_ids = list(labels_dict.keys())
+    patients = []
+    for key, value in labels_dict.items():
+        if value == 1 and key in phenotype.index:
+            patients.append(key)
+    print("Patients:", patients)
+    print("Number of patients:", len(patients))
+    phenotype = phenotype.loc[phenotype.index.isin(patients)]
+    print(phenotype.shape)
     phenotype = phenotype.squeeze()  
+    rows = []
+    for pid, feats in features_dict.items():
+        if pid not in patients:
+            continue
+        mean_feat = feats.mean(dim=0).numpy()
+        label = labels_dict[pid]
+        row = {"Patient_ID": pid}
+        for i in range(mean_feat.shape[0]):
+            row[f"f{i}"] = mean_feat[i]
+            print(f"f{i}: {mean_feat[i]}")
+        
+        row["label"] = label
+        rows.append(row)
 
-    X, y = [], []
-    for pid in patient_ids:
-        if pid in phenotype.index:
-            # 
-            avg_features = features_dict[pid]["features_avgpool"].mean(dim=0)  
-            X.append(avg_features.numpy())
-
-            # If phenotype is truly a Series, this returns a single value:
-            y.append(phenotype.loc[pid])
-
-    X = torch.tensor(X, dtype=torch.float32)  
-    y = torch.tensor(y, dtype=torch.long)
+    df = pd.DataFrame(rows).set_index("Patient_ID")
+    
+    X = df.drop(columns="label")
+    y = df["label"]
+    X = torch.tensor(X.values, dtype=torch.float32)
+    y = torch.tensor(y.values, dtype=torch.long)
 
     # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=223, shuffle=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1, stratify=y, shuffle=True)
 
     # Initialize model
-    input_dim = X_train.shape[1]  # Feature dimension from CNN
-    num_classes = 2  # Assuming binary classification: Stage 1 vs. Stage 2
+    input_dim = 128
+    num_classes = 2
 
     model = ClassifierNN(input_dim, num_classes)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop
-    for epoch in range(100):
+    for epoch in range(10):
         optimizer.zero_grad()
         outputs = model(X_train)
         loss = criterion(outputs, y_train)
@@ -195,6 +213,60 @@ def predict_cnn_only(phenotype):
         preds = model(X_test).argmax(dim=1)
         accuracy = (preds == y_test).float().mean().item()
         print(f"Test Accuracy: {accuracy:.4f}")
+    
+
+    # # 4. Scale, split, train
+    # scaler = StandardScaler()
+    # Xs = scaler.fit_transform(X)
+
+    # X_train, X_test, y_train, y_test = train_test_split(Xs, y, test_size=0.3, random_state=42, stratify=y)
+
+    # # clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    # # clf.fit(X_train, y_train)
+    # # pred = clf.predict(X_test)
+
+    
+    # # print("Accuracy:", accuracy_score(y_test, pred))
+    # # # print(classification_report(y_test, pred))
+
+    # X, y = [], []
+    # for pid in patient_ids:
+    #     if pid in phenotype.index:
+    #         # 
+    #         avg_features = features_dict[pid]["features_avgpool"].mean(dim=0)  
+    #         X.append(avg_features.numpy())
+
+    #         # If phenotype is truly a Series, this returns a single value:
+    #         y.append(phenotype.loc[pid])
+
+    # X = torch.tensor(X, dtype=torch.float32)  
+    # y = torch.tensor(y, dtype=torch.long)
+
+    # # Train-test split
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=223, shuffle=True)
+
+    # # Initialize model
+    # input_dim = X_train.shape[1]  # Feature dimension from CNN
+    # num_classes = 2  # Assuming binary classification: Stage 1 vs. Stage 2
+
+    # model = ClassifierNN(input_dim, num_classes)
+    # criterion = nn.CrossEntropyLoss()
+    # optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    # # Training loop
+    # for epoch in range(100):
+    #     optimizer.zero_grad()
+    #     outputs = model(X_train)
+    #     loss = criterion(outputs, y_train)
+    #     loss.backward()
+    #     optimizer.step()
+    #     print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
+
+    # # Evaluate
+    # with torch.no_grad():
+    #     preds = model(X_test).argmax(dim=1)
+    #     accuracy = (preds == y_test).float().mean().item()
+    #     print(f"Test Accuracy: {accuracy:.4f}")
 
 
 if __name__ == "__main__":
@@ -203,4 +275,4 @@ if __name__ == "__main__":
     phenotype2 = phenotype.copy()
 
     predict_cnn_only(phenotype)
-    predict_prefusion(phenotype2)
+    # predict_prefusion(phenotype2)
