@@ -36,7 +36,7 @@ def encode_clinical_data(clinical):
     phenotype = clinical["tumor_stage_pathological"]
 
 
-    clinical.drop(columns="tumor_stage_pathological")
+    clinical = clinical.drop(columns="tumor_stage_pathological")
     clinical["age"].loc[clinical["age"] == ">=90"] = 90
 
 
