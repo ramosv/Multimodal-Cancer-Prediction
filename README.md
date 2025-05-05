@@ -4,6 +4,8 @@
 
 ## Vicente Ramos
 
+http://firebrowse.org/?cohort=KIRC&download_dialog=true
+
 clone the repo
 create a virtual enviroment
 
@@ -79,3 +81,18 @@ Extracted relevant image features from CT scans for kidney cancer diagnosis usin
 Unique Patients clinical: 103
 Moved 27 folders to /Users/jessicatan/CU Denver 2024/Spring 2025/CSCI 5930/Research Project/Clear-Cell-Carcinoma-Study/CT-Scan/present
 Moved 38 folders to /Users/jessicatan/CU Denver 2024/Spring 2025/CSCI 5930/Research Project/Clear-Cell-Carcinoma-Study/CT-Scan/not_present
+
+
+-First run find_relevant.py
+-Run only_ct.py
+/home/vicente/Github/Clear-Cell-Carcinoma-Study/CT-Scan/20250411/C3L-00800_png/20081130_125502_MR__20081130_125502_MR_
+/home/vicente/Github/Clear-Cell-Carcinoma-Study/CT-Scan/20250411/C3L-00817_png/20080516_070458_MR__20080516_070458_MR_
+/home/vicente/Github/Clear-Cell-Carcinoma-Study/CT-Scan/20250411/C3N-01808_png/20100601_083722_MR_6526676604424618_20100601_083722_MR_6526676604424618
+
+pre fusion:
+    Direct Concatenation with Alignment and Normalization
+
+post fusion:
+
+    Ensemble of Modal-Specific Models with Meta-Learning
+    Cascade Decision Fusion

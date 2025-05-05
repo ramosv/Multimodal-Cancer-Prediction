@@ -36,13 +36,9 @@ def encode_clinical_data(clinical):
     phenotype = clinical["tumor_stage_pathological"]
 
 
-    clinical.drop(columns="tumor_stage_pathological")
-
+    clinical = clinical.drop(columns="tumor_stage_pathological")
     clinical["age"].loc[clinical["age"] == ">=90"] = 90
 
-    #print(clinical["age"].value_counts())
-
-    #breakpoint()
 
     print(type(phenotype))
 
@@ -60,10 +56,8 @@ def encode_clinical_data(clinical):
         clean_clinical[column]  = encoder.fit_transform(clinical[column])
 
     
-    #clinical = encoder.fit_transform(string_features)
 
     print(phenotype.value_counts(sort=True))
-
     print(clean_clinical)
     
 

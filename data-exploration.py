@@ -40,8 +40,8 @@ genomics.to_csv(root_dir / "genes_raw.csv")
 proteomics.to_csv(root_dir / "proteins_raw.csv")
 clinical.to_csv(root_dir / "clinical_raw.csv")
 
-proteomics = cptac.utils.reduce_multiindex(df=proteomics, levels_to_drop="Database_ID", quiet=True)
-genomics = cptac.utils.reduce_multiindex(df=genomics, levels_to_drop="Database_ID", quiet=True)
+proteomics = cptac.utils.reduce_multiindex(df=proteomics, levels_to_drop="Name", quiet=True)
+genomics = cptac.utils.reduce_multiindex(df=genomics, levels_to_drop="Name", quiet=True)
 
 # Lets try to get the same subjects/ patients
 # Smalles dataset will drive this
@@ -68,7 +68,7 @@ print("After filtering for common patients:")
 print(f"Genomics: {genomics.shape} Proteomics: {proteomics.shape}  Clinical: {clinical.shape}")
 
 # after the filtering we can save the to csv file again to see what the data looks like.
-output_dir = Path("jessica_output")
+output_dir = Path("all_output")
 output_dir.mkdir(exist_ok=True)
 genomics.to_csv(output_dir / "genes_filtered.csv")
 proteomics.to_csv(output_dir / "proteins_filtered.csv")
