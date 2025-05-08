@@ -2,14 +2,16 @@ import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
 from pathlib import Path
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 import torch
 from sklearn.model_selection import train_test_split
 import logging
 from omics_features import pre_process_omics, load_data, encode_clinical_data
 # import PCA
 from sklearn.decomposition import PCA
-
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.model_selection import StratifiedKFold
 
 
 if torch.cuda.is_available():
@@ -28,95 +30,107 @@ else:
     device = torch.device("cpu")
     logging.info("Falling back to CPU.")
 
-class ClassifierNN(nn.Module):
-    #input dim should be 128
-    def __init__(self, input_dim, num_classes):
-        super(ClassifierNN, self).__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, 2)
-        )
-    
-    def forward(self, x):
-        return self.fc(x)
     
 def predict_prefusion(phenotype):
     root = Path("all_output")
-    num_classes = 2
-    features_dict = torch.load(root /"features.pt") 
-    patient_ids = list(features_dict.keys())
+    features_dict = torch.load(root /"custom_feats.pt") 
+    labels_dict = torch.load(root /"labels.pt")
+    patient_ids = list(labels_dict.keys())
+
+    patients = []
+
+    for key, value in labels_dict.items():
+        if value == 1 and key in phenotype.index:
+            patients.append(key)
+    print("Patients:", patients)
+    print("Number of patients:", len(patients))
+
+    phenotype = phenotype.loc[phenotype.index.isin(patients)]
+    print(phenotype.shape)
+    phenotype = phenotype.squeeze()  
+
+    rows = []
+
+    for pid, feats in features_dict.items():
+        if pid not in patients:
+            continue
+        mean_feat = feats.mean(dim=0).numpy()
+        label = labels_dict[pid]
+        row = {"Patient_ID": pid}
+        for i in range(mean_feat.shape[0]):
+            row[f"f{i}"] = mean_feat[i]
+            #print(f"f{i}: {mean_feat[i]}")
+        
+        row["label"] = label
+        rows.append(row)
+
+    cnn_features = pd.DataFrame(rows).set_index("Patient_ID")
+    print(cnn_features)
+
     phenotype = phenotype.squeeze()  
 
     # get the features from the omics data#     
     genomics, proteomics, clinical,  = load_data()
     #clinical, phenotype = encode_clinical_data(clinical)
     genomics, proteomics = pre_process_omics(genomics,proteomics)
-
-    #patient_ids = list(cnn_feateures.keys())
      
     # merge the features from omics + images in one feature vector
     omics = pd.concat([genomics, proteomics], axis=1, join="inner")
     omics_filtered = omics.loc[omics.index.isin(patient_ids)]
     omics_filtered = omics_filtered.reset_index(drop=True)
 
-    # Create a DataFrame for CNN features without averaging:
-    # For each patient, flatten the tensor [n, D] into a 1D vector of length n * D.
-    cnn_flat_features = {}
-    for pid, feat_data in features_dict.items():
-        tensor = feat_data["features_avgpool"] 
-        flat_feat = tensor.view(-1).cpu().numpy()  
-        cnn_flat_features[pid] = flat_feat
+    cnn_features = pd.DataFrame(rows).set_index("Patient_ID")
+    print(cnn_features)
 
-
-    # Convert the dict of flattened features into a DataFrame
-    cnn_df = pd.DataFrame.from_dict(cnn_flat_features, orient='index')
-    cnn_df.index.name = "Patient_ID"
     
     # Merge CNN and omics features:
     # Find patients present in both datasets.
-    common_patients = omics.index.intersection(cnn_df.index)
+    common_patients = omics.index.intersection(cnn_features.index)
+    #sjpuld be 27 patients
+    print(f"Common patients: {len(common_patients)}")
     omics_filtered = omics.loc[common_patients].copy()
-    cnn_filtered = cnn_df.loc[common_patients].copy()
+    cnn_filtered = cnn_features.loc[common_patients].copy()
+
+    print(omics_filtered.shape)
+    print(cnn_filtered.shape)
     
-    cnn_filtered.dropna(axis=1, inplace=True)
-    pca = PCA(n_components=256)
-    cnn_reduced = pca.fit_transform(cnn_filtered)
-    cnn_reduced_df = pd.DataFrame(cnn_reduced,
-                                  index=cnn_filtered.index,
-                                  columns=[f'pca_{i+1}' for i in range(256)])
-
-    all_features = pd.concat([omics_filtered, cnn_reduced_df], axis=1)
-
-    all_features.dropna(axis=1, inplace=True)
-
-    phenotype_filtered = phenotype.loc[phenotype.index.intersection(common_patients)]
+    all_features = pd.concat([omics_filtered, cnn_filtered], axis=1)
 
     print(all_features)
-    print(phenotype_filtered)
-    
-    # Scale the features
-    scaler = StandardScaler()
-    scaled_features = scaler.fit_transform(all_features)
-    scaled_features_df = pd.DataFrame(scaled_features, index=all_features.index, columns=all_features.columns)
-    
-    print("Merged features shape:", scaled_features_df.shape)
-    print(scaled_features_df.describe())
-    
+    print(phenotype)
+
     # Train-test split (using RandomForestClassifier here instead of the NN)
-    X_train, X_test, y_train, y_test = train_test_split(
-        scaled_features_df, phenotype_filtered, test_size=0.4, random_state=223, shuffle=True
-    )
+    #X_train, X_test, y_train, y_test = train_test_split(all_features, phenotype, test_size=0.4, random_state=223, shuffle=True)
+    cross_validation = StratifiedKFold(n_splits=2, shuffle=True, random_state=1)
+    fold_acc = []
+    for fold, (train_index, test_index) in enumerate(cross_validation.split(all_features, phenotype)):
+        print(f"Starting fold: {fold}")
+        
+        X_train = all_features.iloc[train_index]
+        X_test = all_features.iloc[test_index]
+        y_train = phenotype.iloc[train_index]
+        y_test = phenotype.iloc[test_index]
+        
+        model = RandomForestClassifier()
+        model.fit(X_train, y_train)
+        predictions = model.predict(X_test)
+        
+        acc = accuracy_score(y_test, predictions)
+        fold_acc.append(acc)
+        print(f"Accuracy: {acc:.4f}")
+        print("Classification Report:")
+        print(classification_report(y_test, predictions, digits=4))
+
+    print(f"Mean accuracy across all folds: {sum(fold_acc)/len(fold_acc):.4f}")
+
+    # for single train-test split
+    # model = RandomForestClassifier()
+    # model.fit(X_train, y_train)
+    # predictions = model.predict(X_test)
     
-    from sklearn.ensemble import RandomForestClassifier
-    from sklearn.metrics import classification_report, accuracy_score
-    model = RandomForestClassifier()
-    model.fit(X_train, y_train)
-    predictions = model.predict(X_test)
-    
-    print(classification_report(y_test, predictions))
-    print("Accuracy:", accuracy_score(y_test, predictions))
-    return predictions, model
+    # print(classification_report(y_test, predictions))
+    # print("Accuracy:", accuracy_score(y_test, predictions))
+
 
 def get_target_class(clinical):
     present_patients = Path("CT-Scan/present_png")
@@ -150,24 +164,26 @@ def get_target_class(clinical):
     return phenotype
 
 
-
-
 def predict_cnn_only(phenotype):
     root = Path("all_output")
-    num_classes = 2
     features_dict = torch.load(root /"custom_feats.pt") 
     labels_dict = torch.load(root /"labels.pt")
     patient_ids = list(labels_dict.keys())
+
     patients = []
+
     for key, value in labels_dict.items():
         if value == 1 and key in phenotype.index:
             patients.append(key)
     print("Patients:", patients)
     print("Number of patients:", len(patients))
+
     phenotype = phenotype.loc[phenotype.index.isin(patients)]
     print(phenotype.shape)
     phenotype = phenotype.squeeze()  
+
     rows = []
+
     for pid, feats in features_dict.items():
         if pid not in patients:
             continue
@@ -176,85 +192,98 @@ def predict_cnn_only(phenotype):
         row = {"Patient_ID": pid}
         for i in range(mean_feat.shape[0]):
             row[f"f{i}"] = mean_feat[i]
-            print(f"f{i}: {mean_feat[i]}")
+            #print(f"f{i}: {mean_feat[i]}")
         
         row["label"] = label
         rows.append(row)
 
     df = pd.DataFrame(rows).set_index("Patient_ID")
+    print(df)
     
     X = df.drop(columns="label")
+    print(X)
     y = df["label"]
     X = torch.tensor(X.values, dtype=torch.float32)
-    y = torch.tensor(y.values, dtype=torch.long)
 
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1, stratify=y, shuffle=True)
+    y = torch.tensor(phenotype, dtype=torch.long)
+    print(y)
+
+    # for single train test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=1, shuffle=True)
+
+    # for k-fold cross validation
+    cross_validation = StratifiedKFold(n_splits=2, shuffle=True, random_state=42)
+    fold_acc = []
 
     # Initialize model
     input_dim = 128
-    num_classes = 2
+    num_classes = 4
 
-    model = ClassifierNN(input_dim, num_classes)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    # a very shallow model for testing the extrracted features
 
-    # Training loop
-    for epoch in range(10):
-        optimizer.zero_grad()
-        outputs = model(X_train)
-        loss = criterion(outputs, y_train)
-        loss.backward()
-        optimizer.step()
-        print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
+    class ClassifierNN(nn.Module):
+        def __init__(self, input_dim, num_classes):
+            super(ClassifierNN, self).__init__()
+            self.fc = nn.Sequential(
+                nn.Linear(input_dim, 64),
+                nn.ReLU(),
+                nn.Linear(64, num_classes)
+            )
+        
+        def forward(self, x):
+            return self.fc(x)
+        
+    for fold, (train_index, test_index) in enumerate(cross_validation.split(X, y)):
+        print(f"Starting fold: {fold}")
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        
+        model = ClassifierNN(input_dim, num_classes)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(model.parameters(), lr=0.001) 
 
-    # Evaluate
-    with torch.no_grad():
-        preds = model(X_test).argmax(dim=1)
-        accuracy = (preds == y_test).float().mean().item()
-        print(f"Test Accuracy: {accuracy:.4f}")
+        for epoch in range(50):
+            optimizer.zero_grad()
+            outputs = model(X_train)
+            loss = criterion(outputs, y_train)
+            loss.backward()
+            optimizer.step()
+            if (epoch + 1) % 10 == 0:
+                print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
+
+        with torch.no_grad():
+            preds = model(X_test).argmax(dim=1)
+            accuracy = (preds == y_test).float().mean().item()
+            fold_acc.append(accuracy)
+            print(f"Test Accuracy: {accuracy:.4f}")
+
+    print(f"Mean accuracy across all fold: {sum(fold_acc)/len(fold_acc):.4f}")
+
+    """
+    Starting fold: 0
+    Epoch 10, Loss: 1.3029
+    Epoch 20, Loss: 1.2329
+    Epoch 30, Loss: 1.1866
+    Epoch 40, Loss: 1.1703
+    Epoch 50, Loss: 1.1634
+    Test Accuracy: 0.5000
+    Starting fold: 1
+    Epoch 10, Loss: 1.3247
+    Epoch 20, Loss: 1.2647
+    Epoch 30, Loss: 1.2247
+    Epoch 40, Loss: 1.2071
+    Epoch 50, Loss: 1.1990
+    Test Accuracy: 0.5385
+    Mean accuracy across all fold: 0.5192
     
-
-    # # 4. Scale, split, train
-    # scaler = StandardScaler()
-    # Xs = scaler.fit_transform(X)
-
-    # X_train, X_test, y_train, y_test = train_test_split(Xs, y, test_size=0.3, random_state=42, stratify=y)
-
-    # # clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    # # clf.fit(X_train, y_train)
-    # # pred = clf.predict(X_test)
-
-    
-    # # print("Accuracy:", accuracy_score(y_test, pred))
-    # # # print(classification_report(y_test, pred))
-
-    # X, y = [], []
-    # for pid in patient_ids:
-    #     if pid in phenotype.index:
-    #         # 
-    #         avg_features = features_dict[pid]["features_avgpool"].mean(dim=0)  
-    #         X.append(avg_features.numpy())
-
-    #         # If phenotype is truly a Series, this returns a single value:
-    #         y.append(phenotype.loc[pid])
-
-    # X = torch.tensor(X, dtype=torch.float32)  
-    # y = torch.tensor(y, dtype=torch.long)
-
-    # # Train-test split
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=223, shuffle=True)
-
-    # # Initialize model
-    # input_dim = X_train.shape[1]  # Feature dimension from CNN
-    # num_classes = 2  # Assuming binary classification: Stage 1 vs. Stage 2
+    """
 
     # model = ClassifierNN(input_dim, num_classes)
     # criterion = nn.CrossEntropyLoss()
     # optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    # # Training loop
-    # for epoch in range(100):
+    # Training loop
+    # for epoch in range(10):
     #     optimizer.zero_grad()
     #     outputs = model(X_train)
     #     loss = criterion(outputs, y_train)
@@ -262,17 +291,17 @@ def predict_cnn_only(phenotype):
     #     optimizer.step()
     #     print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
 
-    # # Evaluate
+    # evaluate
     # with torch.no_grad():
     #     preds = model(X_test).argmax(dim=1)
     #     accuracy = (preds == y_test).float().mean().item()
     #     print(f"Test Accuracy: {accuracy:.4f}")
-
+    
 
 if __name__ == "__main__":
     genomics, proteomics, clinical = load_data()
     phenotype = get_target_class(clinical)
     phenotype2 = phenotype.copy()
 
-    predict_cnn_only(phenotype)
-    # predict_prefusion(phenotype2)
+    #predict_cnn_only(phenotype)
+    predict_prefusion(phenotype2)
