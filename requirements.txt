@@ -4,8 +4,8 @@ numpy
 scikit-learn
 matplotlib
 dicom2jpg
-#fast
-#pyradiomics
+pillow
+
 #pytorch
 #torchvision
 # install from https://pytorch.org/get-started/locally/
