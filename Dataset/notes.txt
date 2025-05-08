@@ -1,6 +1,0 @@
-Dataset:
-https://www.cancerimagingarchive.net/collection/lidc-idri/
-
-
-Feature extraction in python:
-https://medium.com/@dinuScripnic/segmentation-of-ct-scan-with-python-21e298411443

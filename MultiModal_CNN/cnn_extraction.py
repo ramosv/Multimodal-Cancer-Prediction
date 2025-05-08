@@ -200,16 +200,16 @@ weighted avg       0.45      0.47      0.46        19
 
 """
 
-def main():
-    root_dir = Path.cwd()
+# def main():
+#     root_dir = Path.cwd()
     
-    print(f"Current working directory: {root_dir}")
-    print("Extracting features...")
-    # extract_all(root_dir/"CT-Scan")
-    # run_predictions()
-    freezing_cnn(root_dir/"CT-Scan")
+#     print(f"Current working directory: {root_dir}")
+#     print("Extracting features...")
+#     extract_all(root_dir/"CT-Scan")
+#     run_predictions()
+#     freezing_cnn(root_dir/"CT-Scan")
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
 

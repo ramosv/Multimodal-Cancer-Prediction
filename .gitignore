@@ -18,6 +18,7 @@ CT-Scan/20250423
 CT-Scan/20250411
 
 all_output
+*pt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
