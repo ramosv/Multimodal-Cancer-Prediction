@@ -10,8 +10,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import StratifiedKFold
 
-from omics_features import pre_process_omics, load_data
+from .omics_features import pre_process_omics, load_data
 import logging
+
+logging.basicConfig(level=logging.INFO)
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
@@ -142,8 +144,8 @@ def get_target_class(clinical):
     logging.info(relevant_patients)
     clinical.reset_index(inplace=True)
     logging.info(clinical.columns)
-    clinical = clinical[clinical["Patient_ID"].isin(relevant_patients)]
-    clinical = clinical[["Patient_ID", "tumor_stage_pathological"]]
+    clinical_pid = clinical[clinical["Patient_ID"].isin(relevant_patients)]
+    clinical = clinical_pid[["Patient_ID", "tumor_stage_pathological"]]
     logging.info(clinical)
     clinical.set_index("Patient_ID", inplace=True)
     logging.info(clinical)

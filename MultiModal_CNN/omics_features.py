@@ -116,7 +116,7 @@ def random_forest_classifier(genomics, proteomics, clinical, phenotype):
     '''
     Here we will train the model and return the predictions and metrics 
     '''
-    logging.info()
+    logging.info('Starting random forest classifier')
     # merge the omics
     logging.info(genomics.shape)
     logging.info(proteomics.shape)

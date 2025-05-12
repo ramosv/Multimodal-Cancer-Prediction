@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 import shutil
+import os
 
 def find_overlap(clinical_df, image_dir):
     patient_ids = set(clinical_df.index)
@@ -19,10 +20,10 @@ def find_overlap(clinical_df, image_dir):
     print(f"Removed {mr_count} MR folders from the dataset")
 
     
-    present_dir = "CT-Scan/present_png"
-    not_present_dir = "CT-Scan/not_present_png"
-    present_dir.mkdir(exist_ok=True)
-    not_present_dir.mkdir(exist_ok=True)
+    present_dir = Path("CT-Scan/present_png")
+    not_present_dir = Path("CT-Scan/not_present_png")
+    os.makedirs(present_dir, exist_ok=True)
+    os.makedirs(not_present_dir, exist_ok=True)
     print(f"Present directory: {present_dir}")
     print(f"Not present directory: {not_present_dir}")
     
