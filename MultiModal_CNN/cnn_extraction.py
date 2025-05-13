@@ -8,14 +8,15 @@ import tqdm
 import torch.nn as nn
 import os
 import pandas as pd
-from sklearn.ensemble       import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics         import classification_report, accuracy_score
-from sklearn.preprocessing   import StandardScaler
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.preprocessing import StandardScaler
+import sys
 
 torch.cuda.empty_cache()
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream = sys.stdout)
 
 device = torch.device("cuda" if torch.cuda.is_available() else 
                       "mps"  if torch.backends.mps.is_available() else 
@@ -61,21 +62,32 @@ transform2 = v2.Compose([
     )
     ])
 
-
-
-def extract_all(root_dir):
+def extract_all(root_dir, timestamp):
     model = SimpleCNN(out_dim=128).to(device).eval()
     patient_feats = {}
     patient_labels= {}
     # use tqdm to show progress bar
-    #move tqdm to inner loop
+    # move tqdm to inner loop
+    present_patients = []
+    for patient_folder in (root_dir/"present").iterdir():
+        pid = patient_folder.name
+        present_patients.append(pid)
 
-    for label_dir, label_val in tqdm.tqdm([("present_png", 1), ("not_present_png", 0)]):
-        for patient_folder in (root_dir/label_dir).iterdir():
-            pid = patient_folder.name.split("_")[0]
+    not_present_patients = []
+    for patient_folder in (root_dir/"not_present").iterdir():
+        pid = patient_folder.name
+        not_present_patients.append(pid)
+
+    logging.info(f"Present patients: {len(present_patients)}")
+    logging.info(f"Not present patients: {len(not_present_patients)}")
+
+    for png_dir in Path(root_dir/timestamp).iterdir():
+        pid = png_dir.name.split("_")[0]
+        for patient_folder in png_dir.iterdir():
             # THis will pull patient ID minus the png part
             feats = []
-            for img_path in patient_folder.rglob("*.png"):
+            logging.info(f"Extracting Features from patient: {pid}")
+            for img_path in tqdm.tqdm(patient_folder.rglob("*.png")):
                 try:
                     img = Image.open(img_path).convert("RGB")
                     with torch.no_grad():
@@ -83,34 +95,57 @@ def extract_all(root_dir):
                         t = transform2(img).unsqueeze(0).to(device)
                         f = model(t)
                     feats.append(f.cpu())
+
                 except (UnidentifiedImageError, OSError):
                     continue
             if feats:
-                patient_feats[pid]   = torch.cat(feats, dim=0)
-                patient_labels[pid]  = label_val
+                patient_feats[pid] = torch.cat(feats, dim=0)
+                if pid in present_patients:
+                    patient_labels[pid] = 1
+                elif pid in not_present_patients:
+                    patient_labels[pid] = 0
+                else:
+                    logging.warning(f"Patient {pid} not found in present or not present patients")
+                    continue
 
     os.makedirs("all_output", exist_ok=True)
-    torch.save(patient_feats,  "all_output/custom_feats.pt")
+    torch.save(patient_feats, "all_output/custom_feats.pt")
     torch.save(patient_labels, "all_output/labels.pt")
     print(f"Extracted features for {len(patient_feats)} patients.")
 
-def freezing_cnn(root_dir):
+def freezing_cnn(root_dir, timestamp):
     # Puts layers in inference mode
     model = SimpleCNN(out_dim=128).to(device).eval()
     model.eval()
+
     for param in model.parameters():
         param.requires_grad = False
+
     patient_feats = {}
     patient_labels= {}
+
+    present_patients = []
+    for patient_folder in (root_dir/"present").iterdir():
+        pid = patient_folder.name
+        present_patients.append(pid)
+
+    not_present_patients = []
+    for patient_folder in (root_dir/"not_present").iterdir():
+        pid = patient_folder.name
+        not_present_patients.append(pid)
+
+    logging.info(f"Present patients: {len(present_patients)}")
+    logging.info(f"Not present patients: {len(not_present_patients)}")
+
     # use tqdm to show progress bar
     #move tqdm to inner loop
 
-    for label_dir, label_val in [("present_png", 1), ("not_present_png", 0)]:
-        for patient_folder in tqdm.tqdm((root_dir/label_dir).iterdir()):
-            pid = patient_folder.name.split("_")[0]
+    for png_dir in Path(root_dir/timestamp).iterdir():
+        pid = png_dir.name.split("_")[0]
+        for patient_folder in png_dir.iterdir():
             # THis will pull patient ID minus the png part
             feats = []
-            for img_path in patient_folder.rglob("*.png"):
+            for img_path in tqdm.tqdm(patient_folder.rglob("*.png")):
                 try:
                     img = Image.open(img_path).convert("RGB")
                     with torch.no_grad():
@@ -120,12 +155,19 @@ def freezing_cnn(root_dir):
                     feats.append(f.cpu())
                 except (UnidentifiedImageError, OSError):
                     continue
+
             if feats:
-                patient_feats[pid]   = torch.cat(feats, dim=0)
-                patient_labels[pid]  = label_val
+                patient_feats[pid] = torch.cat(feats, dim=0)
+                if pid in present_patients:
+                    patient_labels[pid] = 1
+                elif pid in not_present_patients:
+                    patient_labels[pid] = 0
+                else:
+                    logging.warning(f"Patient {pid} not found in present or not present patients")
+                    continue
 
     os.makedirs("all_output", exist_ok=True)
-    torch.save(patient_feats,  "all_output/custom_feats_frozen.pt")
+    torch.save(patient_feats, "all_output/custom_feats_frozen.pt")
     torch.save(patient_labels, "all_output/labels_frozen.pt")
     print(f"Frozen features for {len(patient_feats)} patients.")
 
@@ -143,7 +185,6 @@ def run_predictions():
     for key, value in feats_dict.items():
         print(f"{key}: {value}")
 
-    #breakpoint()
     rows = []
     for pid, feats in feats_dict.items():
         mean_feat = feats.mean(dim=0).numpy()
@@ -151,7 +192,7 @@ def run_predictions():
         row = {"Patient_ID": pid}
         for i in range(mean_feat.shape[0]):
             row[f"f{i}"] = mean_feat[i]
-            print(f"f{i}: {mean_feat[i]}")
+            #print(f"f{i}: {mean_feat[i]}")
         
         row["label"] = label
         rows.append(row)
@@ -187,7 +228,7 @@ Accuracy: 0.4
    macro avg       0.33      0.35      0.34        20
 weighted avg       0.37      0.40      0.38        20
 
-#Transform version 2
+# Transform version 2
 Accuracy: 0.47368421052631576
               precision    recall  f1-score   support
 
@@ -200,16 +241,16 @@ weighted avg       0.45      0.47      0.46        19
 
 """
 
-def main():
-    root_dir = Path.cwd()
+# def main():
+#     root_dir = Path.cwd()
     
-    print(f"Current working directory: {root_dir}")
-    print("Extracting features...")
-    # extract_all(root_dir/"CT-Scan")
-    # run_predictions()
-    freezing_cnn(root_dir/"CT-Scan")
+#     print(f"Current working directory: {root_dir}")
+#     print("Extracting features...")
+#     extract_all(root_dir/"CT-Scan")
+#     run_predictions()
+#     freezing_cnn(root_dir/"CT-Scan")
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
 
