@@ -2,11 +2,17 @@ import dicom2jpg
 from pathlib import Path
 from PIL import Image
 import numpy as np
+import logging
+import sys
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',stream = sys.stdout)
 
 def convert_to_png(dicom_dir):
     dicom_dir = Path(dicom_dir)
     if not dicom_dir.is_dir():
-        raise ValueError(f"{dicom_dir} is not a directory")
+        raise ValueError(f"{dicom_dir}  is not a directory")
     
     # nothing to return, this will conver the files and save them to a unique folder (timestamp)
     dicom2jpg.dicom2png(dicom_dir)

@@ -9,6 +9,8 @@ CT-Scan\CPTAC-CCRCC
 
 jessica_output
 Dataset
+CT-Scan copy/
+temp/
 
 *.dcm
 *.png

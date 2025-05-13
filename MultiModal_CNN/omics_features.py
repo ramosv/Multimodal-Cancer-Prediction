@@ -5,15 +5,17 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_selection import VarianceThreshold
 
 import logging
+import sys
 
-def load_data():
-    root = Path("jessica_output")
-    genomics = pd.read_csv(root / "genes_filtered.csv", index_col=0)
-    proteomics = pd.read_csv(root / "proteins_filtered.csv", index_col=0)
-    clinical = pd.read_csv(root / "clinical_filtered.csv",index_col=0)
-    return genomics, proteomics, clinical
+# def load_data():
+#     root = Path("jessica_output")
+#     genomics = pd.read_csv(root / "genes_filtered.csv", index_col=0)
+#     proteomics = pd.read_csv(root / "proteins_filtered.csv", index_col=0)
+#     clinical = pd.read_csv(root / "clinical_filtered.csv",index_col=0)
+#     return genomics, proteomics, clinical
 
 def encode_clinical_data(clinical):
     '''
@@ -33,12 +35,12 @@ def encode_clinical_data(clinical):
         "Stage III": 1,
         "Stage IV": 1
     }
-    clinical["tumor_stage_pathological"] = clinical["tumor_stage_pathological"].map(stages_dict)
+    clinical.loc[:,"tumor_stage_pathological"] = clinical["tumor_stage_pathological"].map(stages_dict)
     phenotype = clinical["tumor_stage_pathological"]
 
 
     clinical = clinical.drop(columns="tumor_stage_pathological")
-    clinical["age"].loc[clinical["age"] == ">=90"] = 90
+    clinical.loc[ clinical["age"] == ">=90", "age" ] = 90
 
     logging.info(type(phenotype))
     phenotype.squeeze()
@@ -53,15 +55,6 @@ def encode_clinical_data(clinical):
 
     logging.info(phenotype.value_counts(sort=True))
     logging.info(clean_clinical)
-    
-    #alcohol_consumption = [""]
-    # age, sex, tumor_laterality, tumor_size_cm, tumor_necrosis, tumor_stage_pathological, bmi,
-    # alcohol_consumption, tobacco_smoking_history, medica_condition, follow_up_period, vital_status_at_date_of_last_contact,
-    # tumor_status_at_date_of_last_contact_or_death, Survival status (1, dead; 0, alive)
-
-    # Based on the remaining columns we will need to encode them.
-    # Pandas has a function called get_dummies that can help us lol
-    #clinical = pd.get_dummies(clinical)
 
     # at the end we return the a tuple with the clean clinica df and the phenotype or target variable
     return clean_clinical, phenotype
@@ -88,7 +81,7 @@ def pre_process_omics(genomics, proteomics):
     proteomics = proteomics.loc[:, (proteomics == 0).mean() <= 0.5]
 
     # Drop features with very low variance
-    from sklearn.feature_selection import VarianceThreshold
+    
     genomics_index = genomics.index
     genomics_columns = genomics.columns
     proteomics_index = proteomics.index
@@ -122,6 +115,7 @@ def random_forest_classifier(genomics, proteomics, clinical, phenotype):
     logging.info(proteomics.shape)
     logging.info(clinical.shape)
     omics = pd.concat([genomics, proteomics, clinical], axis=1, join="inner")
+
 
     # split the data
     X_train, X_test, y_train, y_test = train_test_split(omics, phenotype, test_size=0.3, random_state=127)

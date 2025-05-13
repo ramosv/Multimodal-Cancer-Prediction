@@ -9,11 +9,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import StratifiedKFold
-
-from .omics_features import pre_process_omics, load_data
 import logging
+import sys
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream = sys.stdout)
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
@@ -32,7 +31,7 @@ else:
     logging.info("Falling back to CPU.")
 
     
-def predict_prefusion(phenotype):
+def predict_prefusion(genomics, proteomics,phenotype):
     root = Path("all_output")
     features_dict = torch.load(root /"custom_feats.pt") 
     labels_dict = torch.load(root /"labels.pt")
@@ -70,10 +69,8 @@ def predict_prefusion(phenotype):
 
     phenotype = phenotype.squeeze()  
 
-    # get the features from the omics data#     
-    genomics, proteomics, clinical,  = load_data()
     # clinical, phenotype = encode_clinical_data(clinical)
-    genomics, proteomics = pre_process_omics(genomics,proteomics)
+    #genomics, proteomics = pre_process_omics(genomics,proteomics)
      
     # merge the features from omics + images in one feature vector
     omics = pd.concat([genomics, proteomics], axis=1, join="inner")
@@ -134,42 +131,10 @@ def predict_prefusion(phenotype):
     # logging.info(classification_report(y_test, predictions))
     # logging.info("Accuracy:", accuracy_score(y_test, predictions))
 
-
-def get_target_class(clinical):
-    present_patients = Path("CT-Scan/present_png")
-    relevant_patients =[]
-    for folder in present_patients.iterdir():
-        parts = folder.name.split("_")
-        relevant_patients.append(parts[0])
-    logging.info(relevant_patients)
-    clinical.reset_index(inplace=True)
-    logging.info(clinical.columns)
-    clinical_pid = clinical[clinical["Patient_ID"].isin(relevant_patients)]
-    clinical = clinical_pid[["Patient_ID", "tumor_stage_pathological"]]
-    logging.info(clinical)
-    clinical.set_index("Patient_ID", inplace=True)
-    logging.info(clinical)
-
-    # Construct target variable
-    stages_dict = {
-        "Stage I": 0,
-        "Stage II": 1,
-        "Stage III": 1,
-        "Stage IV": 1
-    }
-    clinical["tumor_stage_pathological"] = clinical["tumor_stage_pathological"].map(stages_dict)
-    phenotype = clinical[["tumor_stage_pathological"]]
-
-    logging.info(type(phenotype))
-    logging.info(phenotype)
-    logging.info(phenotype.value_counts(sort=True))
-    return phenotype
-
-
 def predict_cnn_only(phenotype):
     root = Path("all_output")
-    features_dict = torch.load(root /"custom_feats.pt") 
-    labels_dict = torch.load(root /"labels.pt")
+    features_dict = torch.load(root /"custom_feats_frozen.pt") 
+    labels_dict = torch.load(root /"labels_frozen.pt")
     patient_ids = list(labels_dict.keys())
 
     patients = []
@@ -177,6 +142,7 @@ def predict_cnn_only(phenotype):
     for key, value in labels_dict.items():
         if value == 1 and key in phenotype.index:
             patients.append(key)
+
     logging.info("Patients:", patients)
     logging.info("Number of patients:", len(patients))
 
@@ -202,12 +168,12 @@ def predict_cnn_only(phenotype):
     logging.info(df)
     
     X = df.drop(columns="label")
-    logging.info(X)
+    #logging.info(X)
     y = df["label"]
     X = torch.tensor(X.values, dtype=torch.float32)
 
     y = torch.tensor(phenotype, dtype=torch.long)
-    logging.info(y)
+    #logging.info(y)
 
     # for single train test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=1, shuffle=True)

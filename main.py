@@ -1,8 +1,10 @@
-
 import cptac
 from pathlib import Path
-from MultiModal_CNN import get_target_class, convert_to_png, check_blank_images, convert_single_dicom, predict_cnn_only, predict_prefusion, extract_all, run_predictions, freezing_cnn, find_overlap, load_data,encode_clinical_data,pre_process_omics, random_forest_classifier
+from MultiModal_CNN import convert_to_png, check_blank_images, convert_single_dicom, predict_cnn_only, predict_prefusion, extract_all, run_predictions, freezing_cnn, find_overlap,encode_clinical_data,pre_process_omics, random_forest_classifier
+import pandas as pd
 import logging
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 def load_raw_data():
@@ -14,7 +16,6 @@ def load_raw_data():
 
     #This will list all the data sources for ccrcc
     ccrcc_instance.list_data_sources()
-    # breakpoint()
 
     # Based on the output above we get a list of possible sources for ccrcc
     # I did some digging already on what we would need from each one.
@@ -36,10 +37,11 @@ def load_raw_data():
 
     # If what I said above is confusing, try uncommening the lines below to see data in csv format.
     # we can save to a csv to explore further
-    root_dir = Path("Dataset")
-    genomics.to_csv(root_dir / "genes_raw.csv")
-    proteomics.to_csv(root_dir / "proteins_raw.csv")
-    clinical.to_csv(root_dir / "clinical_raw.csv")
+    # root_dir = Path("Dataset")
+    # root_dir.mkdir(exist_ok=True)
+    # genomics.to_csv(root_dir / "genes_raw.csv")
+    # proteomics.to_csv(root_dir / "proteins_raw.csv")
+    # clinical.to_csv(root_dir / "clinical_raw.csv")
 
     proteomics = cptac.utils.reduce_multiindex(df=proteomics, levels_to_drop="Name", quiet=True)
     genomics = cptac.utils.reduce_multiindex(df=genomics, levels_to_drop="Name", quiet=True)
@@ -75,48 +77,55 @@ def load_raw_data():
     proteomics.to_csv(output_dir / "proteins_filtered.csv")
     clinical.to_csv(output_dir / "clinical_filtered.csv")
 
-    # Up next! 
-    # we need to write a function to to encode the clincal data.
-    # for this we may want to look up which columns are the most relevant for ccrcc since there are too may features and mary are irrelevant.
-    # I feel like 6-10 features should be good. More is fine but need to be relevant to the cancer.
+    # set the index to column 0
+    # this is the patient ID column
+    genomics_matched = pd.read_csv(output_dir / "genes_filtered.csv", index_col=0)
+    proteomics_matched = pd.read_csv(output_dir / "proteins_filtered.csv", index_col=0)
+    clinical_matched = pd.read_csv(output_dir / "clinical_filtered.csv",index_col=0)
 
-    # age, sex, tumor_laterality, tumor_size_cm, tumor_necrosis, tumor_stage_pathological, bmi,
-    # alcohol_consumption, tobacco_smoking_history, medica_condition, follow_up_period, vital_status_at_date_of_last_contact,
-    # tumor_status_at_date_of_last_contact_or_death, Survival status (1, dead; 0, alive)
-
+    return genomics_matched, proteomics_matched, clinical_matched
 
 if __name__ == "__main__":
-    load_raw_data()
+    # Load the data
 
-    genomics, proteomics, clinical = load_data()
-    clinical, phenotype = encode_clinical_data(clinical)
-    genomics, proteomics = pre_process_omics(genomics,proteomics)
-    predictions, model = random_forest_classifier(genomics, proteomics, clinical, phenotype)
+    genomics, proteomics, clinical = load_raw_data()
+    import sys
+    logging.basicConfig(level = logging.INFO, format = "%(asctime)s - %(levelname)s - %(message)s",stream = sys.stdout, force = True)
+
+
+    clinical_filtered, phenotype_mapped = encode_clinical_data(clinical)
+    mask = phenotype_mapped.notna()
+    phenotype_mapped = phenotype_mapped.loc[mask].astype(int)
+    logging.info(f"Phenotype mapped: {phenotype_mapped.value_counts}")
+
+    genomics_filtered, proteomics_filtered = pre_process_omics(genomics, proteomics)
+
+    predictions, model = random_forest_classifier(genomics_filtered, proteomics_filtered, clinical_filtered, phenotype_mapped)
 
     root = Path.cwd()
     logging.info(f"Current working directory: {root}")
     images = root / "CT-Scan/CPTAC-CCRCC"
 
     # image index col should be 0
-    find_overlap(clinical, images)
+    find_overlap(clinical_filtered, images)
     # dicom_img_01 = root / r"CT-Scan\CPTAC-CCRCC\C3L-00608\03-10-2012-NA-CT ABDOMEN WITH AND WITHOUT CONTRAST-69573\1.000000-SCOUT-99132\1-1.dcm"
     # convert_single_dicom(dicom_img_01)
 
-    convert_to_png(root / "CT-Scan/present_png")
-    convert_to_png(root / "CT-Scan/not_present_png")
+    convert_to_png(root / "CT-Scan/present")
+    convert_to_png(root / "CT-Scan/not_present")
 
-    check_blank_images(root / "CT-Scan/present_png")
-    check_blank_images(root / "CT-Scan/not_present_png")
+    #check_blank_images(root / "CT-Scan/present", root / "CT-Scan/present_png")
+    #check_blank_images(root / "CT-Scan/not_present", root / "CT-Scan/not_present_png")
 
-    phenotype = get_target_class(clinical)
-    phenotype2 = phenotype.copy()
+    #phenotype = get_target_class(clinical)
+    phenotype2 = phenotype_mapped.copy()
     
     logging.info("Extracting features...")
-    extract_all(root/"CT-Scan")
+    extract_all(root/"CT-Scan", "20250513")
     run_predictions()
-    freezing_cnn(root/"CT-Scan")
+    freezing_cnn(root/"CT-Scan", "20250513")
 
-    predict_cnn_only(phenotype)
-    predict_prefusion(phenotype2)
+    predict_cnn_only(phenotype_mapped)
+    predict_prefusion(genomics, proteomics, clinical, phenotype2)
 
 
