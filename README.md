@@ -5,15 +5,16 @@ Authors:
 ### Jessica Tan
 
 ## Setup Instructions:
+
 0. Clone the repo:
 
   - `git clone git@github.com:ramosv/Multimodal-Cancer-Prediction.git`
 
-1. Create a virtual enviroment:
+1. Create a virtual environment:
 
   - `python -m venv .venv`
 
-2. Activate the virtual 1. Create a virtual enviroment:
+2. Activate the virtual environment:
 
   - Unix: `source .venv/bin/activate`
   - Windows: `source .venv/Scripts/activate`
@@ -33,7 +34,7 @@ Authors:
 ## Datasets
 
 ### Omics & clinical dataset
-  - Proteomics, Genomics and Clinical data was available through the `cptac` python package, more informatio available at: [github.com/PayneLab/cptac](https://github.com/PayneLab/cptac)
+  - Proteomics, Genomics and Clinical data was available through the `cptac` python package, more information available at: [github.com/PayneLab/cptac](https://github.com/PayneLab/cptac)
 
 ### Image data
 All image data is publicly available from the [Cancer Imaging Archive](https://www.cancerimagingarchive.net/collection/cptac-ccrcc/)
@@ -44,7 +45,7 @@ Files:
   - Format: Image files are in .dcm formart (DICOM)
   - CPTAC-CCRCC Folder (download required)
     - Size: 52.6GB
-    - Number of folders: `63` folders corresponging to each patient. 
+    - Number of folders: `63` folders corresponding to each patient. 
     - Number of sub-folders: `877` sub-folders.
     - Number of images: It varies per patient, for example: 
       - Subject `C3L-00815` has `2294` images.
@@ -52,7 +53,7 @@ Files:
 
     - Due to the large size of the images, we cannot push this data to the repository. Please download the images from the following link: [Cancer Imaging Archive](https://www.cancerimagingarchive.net/collection/cptac-ccrcc/)
 
-    - To download the images you will need to install a data retrieving tool. [NBIA](https://wiki.cancerimagingarchive.net/display/NBIA/Downloading+TCIA+Images).
+    - To download the images you will need to git install a data retrieving tool. [NBIA](https://wiki.cancerimagingarchive.net/display/NBIA/Downloading+TCIA+Images).
 
 ## Feature extraction
 
