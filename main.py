@@ -99,7 +99,6 @@ if __name__ == "__main__":
     logging.info(f"Phenotype mapped: {phenotype_mapped.value_counts}")
 
     genomics_filtered, proteomics_filtered = pre_process_omics(genomics, proteomics)
-
     predictions, model = random_forest_classifier(genomics_filtered, proteomics_filtered, clinical_filtered, phenotype_mapped)
 
     root = Path.cwd()
@@ -108,16 +107,10 @@ if __name__ == "__main__":
 
     # image index col should be 0
     find_overlap(clinical_filtered, images)
-    # dicom_img_01 = root / r"CT-Scan\CPTAC-CCRCC\C3L-00608\03-10-2012-NA-CT ABDOMEN WITH AND WITHOUT CONTRAST-69573\1.000000-SCOUT-99132\1-1.dcm"
-    # convert_single_dicom(dicom_img_01)
 
     convert_to_png(root / "CT-Scan/present")
     convert_to_png(root / "CT-Scan/not_present")
 
-    #check_blank_images(root / "CT-Scan/present", root / "CT-Scan/present_png")
-    #check_blank_images(root / "CT-Scan/not_present", root / "CT-Scan/not_present_png")
-
-    #phenotype = get_target_class(clinical)
     phenotype2 = phenotype_mapped.copy()
     
     logging.info("Extracting features...")
