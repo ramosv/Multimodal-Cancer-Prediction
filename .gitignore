@@ -21,6 +21,7 @@ CT-Scan/20250411
 
 all_output
 *pt
+!plots/*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
